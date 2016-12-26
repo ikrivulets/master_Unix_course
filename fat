@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# parsing command line arguments
+if [ "$1" == "" ] ; 
+then
+  NUM_OF_MISSED=0
+  NUM_OF_FILES=10
+else if [ "$2" == "" ];
+     then 
+	echo "There should be 2 or 0 arguments" >&2
+	exit 1
+     else
+	NUM_OF_MISSED=$1
+	NUM_OF_FILES=$2
+     fi
+fi
+
+
+FILES_LIST="$(du -ah | sort -rh | head -n $(expr $NUM_OF_FILES + 1) | sort -h | head -n $(expr $NUM_OF_FILES - $NUM_OF_MISSED) | sort -rh)"
+
+FILES_SIZES="$(du -a | sort -rh | head -n $(expr $NUM_OF_FILES + 1) | sort -h | head -n $(expr $NUM_OF_FILES - $NUM_OF_MISSED) | sort -rh | awk '{ total += $1}; END { print total}')"
+
+
+result="$(numfmt --to=iec-i --suffix=B --padding=7 $(($FILES_SIZES * 1024)))"
+RESULT_NO_WHITESPACE="$(echo -e "${result}" | tr -d '[:space:]')"
+RESULT_NO_WHITESPACE+="	total"
+
+echo "$FILES_LIST"
+echo "$RESULT_NO_WHITESPACE"
