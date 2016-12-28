@@ -1,14 +1,12 @@
 #!/bin/bash
 
 # parsing command line arguments
-if [ "$#" -ne 0 ] && [ "$#" -ne 2 ];
-then
+if [ "$#" -ne 0 ] && [ "$#" -ne 2 ]; then
   echo "There should be 2 or 0 arguments" >&2
   exit 1
 fi
 
-if [ "$#" -eq 0 ]; 
-then
+if [ "$#" -eq 0 ]; then
   NUM_OF_MISSED=0
   NUM_OF_FILES=10
 else 
@@ -18,31 +16,55 @@ fi
 
 # checking if integers
 re='^[0-9]+$'
-if ! [[ $NUM_OF_FILES =~ $re ]];
-then
+if ! [[ $NUM_OF_FILES =~ $re ]]; then
    echo "error: NUM_OF_FILES is not a correct input number" >&2; 
    exit 1
 fi
-if ! [[ $NUM_OF_MISSED =~ $re ]];
-then
+
+if ! [[ $NUM_OF_MISSED =~ $re ]]; then
    echo "error: NUM_OF_MISSED is not a correct input number" >&2; 
    exit 1
 fi
 
-if [ $NUM_OF_MISSED -ge $NUM_OF_FILES ];
-then
+if [ $NUM_OF_MISSED -ge $NUM_OF_FILES ]; then
    echo "error: NUM_OF_MISSED should be less than NUM_OF_FILES" >&2; 
    exit 1
 fi
 
-FILES_LIST="$(du -ah | sort -rh | head -n $(expr $NUM_OF_FILES + $NUM_OF_MISSED + 1) | sort -h | head -n $NUM_OF_FILES | sort -rh)"
+# getting lists with largest files and their sizes
+FILES_LIST="$(du -ah | sort -rh | head -n $(expr $NUM_OF_FILES + $NUM_OF_MISSED + 1))"
+FILES_SIZES="$(du -a | sort -rh | head -n $(expr $NUM_OF_FILES + $NUM_OF_MISSED + 1) | awk '{print $1}')"
 
-FILES_SIZES="$(du -a | sort -rh | head -n $(expr $NUM_OF_FILES + $NUM_OF_MISSED + 1) | sort -h | head -n  $NUM_OF_FILES | sort -rh | awk '{ total += $1}; END { print total}')"
+# printing just proper lines(without . and not greater than NUM_OF_FILES)
+COUNTER=0
+set -f
+IFS='
+'
+for line in $FILES_LIST; do 
+   if [ $COUNTER -gt $NUM_OF_MISSED ]; then 
+	echo "$line"
+   fi 
+   ((COUNTER++))
+   if [ $COUNTER -gt $(expr $NUM_OF_FILES + $NUM_OF_MISSED) ]; then 
+	break
+   fi
+done
 
+# counting total from raw sizes
+COUNTER=0
+TOTAL=0
+for line in $FILES_SIZES; do 
+   if [ $COUNTER -gt $NUM_OF_MISSED ]; then 
+	TOTAL=$(($TOTAL + $line))
+   fi 
+   ((COUNTER++))
+   if [ $COUNTER -gt $(expr $NUM_OF_FILES + $NUM_OF_MISSED) ]; then 
+	break
+   fi
+done
 
-result="$(numfmt --to=iec-i --suffix=B --padding=7 $(($FILES_SIZES * 1024)))"
-RESULT_NO_WHITESPACE="$(echo -e "${result}" | tr -d '[:space:]')"
+# preparing total result(convert to bytes and human readable format)
+RESULT="$(numfmt --to=iec-i --suffix=B --padding=7 $(($TOTAL * 1024)))"
+RESULT_NO_WHITESPACE="$(echo -e "${RESULT}" | tr -d '[:space:]')"
 RESULT_NO_WHITESPACE+="	total"
-
-echo "$FILES_LIST"
 echo "$RESULT_NO_WHITESPACE"
